@@ -1,42 +1,52 @@
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel
+from typing import Annotated, Sequence
+from fastapi import FastAPI, HTTPException, status, Depends
+from sqlmodel import Session, select
 
-app = FastAPI(title="Release Tracker", description="API for tracking software releases", version="1.0.0")
+from release_tracker.database import get_session
+from release_tracker.models import Project, ProjectRead
 
-class ProjectRead(BaseModel):
-    id: int
-    name: str
-    slug: str
+app = FastAPI(
+    title="Release Tracker",
+    description="API for tracking project milestones",
+    version="1.0.0",
+)
 
-# mock database for demonstration purposes
-mock_database: dict[int, ProjectRead] = {
-    1: ProjectRead(id=1, name="Frontend Redesign", slug="frontend-redesign"),
-    2: ProjectRead(id=2, name="API Version 2", slug="api-v2"),
-    3: ProjectRead(id=3, name="Database Migration", slug="database-migration"),
-}
-
+SessionDep = Annotated[Session, Depends(get_session)]
 
 # get a list of all projects, optionally filtered by name
-@app.get("/projects")
-def list_projects(name: str | None = None):
-    projects = list(mock_database.values())
-    if name:
-        projects = [project for project in projects if name in project.name]
-    return projects
+@app.get("/projects", response_model=list[ProjectRead], status_code=status.HTTP_200_OK)
+def list_projects(session: SessionDep):
+    statement = select(Project).order_by(Project.name)
+    projects = session.exec(statement).all()
+    return list(projects)
+
 
 # get a specific project by ID
-@app.get("/projects/{project_id}", response_model=ProjectRead, status_code=status.HTTP_200_OK)
-def get_project(project_id: int) -> ProjectRead:
-    project = mock_database.get(project_id)
+@app.get(
+    "/projects/{project_id}", response_model=ProjectRead, status_code=status.HTTP_200_OK
+)
+def get_project(project_id: int, session: SessionDep) -> Project:
+    # project = mock_database.get(project_id)
+    project = session.get(Project, project_id)
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
     return project
 
 
-#get a specific project by slug
-@app.get("/projects/slug/{project_slug}", response_model=list[ProjectRead], status_code=status.HTTP_200_OK)
-def get_project_by_slug(project_slug: str) -> list[ProjectRead]:
-    projects = [project for project in mock_database.values() if project.slug == project_slug]
+# get a specific project by slug
+@app.get(
+    "/projects/slug/{project_slug}",
+    response_model=list[ProjectRead],
+    status_code=status.HTTP_200_OK,
+)
+def get_project_by_slug(project_slug: str, session: SessionDep) -> Sequence[Project]:
+    # projects = [project for project in mock_database.values() if project.slug == project_slug]
+    statement = select(Project).where(Project.slug == project_slug)
+    projects = session.exec(statement).all()
     if not projects:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
     return projects

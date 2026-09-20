@@ -32,6 +32,7 @@ def get_project(project_id: int) -> ProjectRead:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     return project
 
+
 #get a specific project by slug
 @app.get("/projects/slug/{project_slug}", response_model=list[ProjectRead], status_code=status.HTTP_200_OK)
 def get_project_by_slug(project_slug: str) -> list[ProjectRead]:

@@ -25,3 +25,23 @@ def test_get_project_by_id():
     assert data["id"] == 1
     assert data["name"] == "Frontend Redesign"
     assert data["slug"] == "frontend-redesign"
+    
+def test_get_project_by_id_not_found():
+    response = client.get("/projects/999")
+    assert response.status_code == 404
+    data = response.json()
+    assert data["detail"] == "Project not found"
+    
+def test_get_project_by_slug():
+    response = client.get("/projects/slug/frontend-redesign")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["slug"] == "frontend-redesign"
+
+def test_get_project_by_slug_not_found():
+    response = client.get("/projects/slug/non-existent-slug")
+    assert response.status_code == 404
+    data = response.json()
+    assert data["detail"] == "Project not found"

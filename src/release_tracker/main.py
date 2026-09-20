@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 
 app = FastAPI(title="Release Tracker", description="API for tracking software releases", version="1.0.0")
@@ -25,9 +25,17 @@ def list_projects(name: str | None = None):
     return projects
 
 # get a specific project by ID
-@app.get("/projects/{project_id}", response_model=ProjectRead)
+@app.get("/projects/{project_id}", response_model=ProjectRead, status_code=status.HTTP_200_OK)
 def get_project(project_id: int) -> ProjectRead:
     project = mock_database.get(project_id)
     if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     return project
+
+#get a specific project by slug
+@app.get("/projects/slug/{project_slug}", response_model=list[ProjectRead], status_code=status.HTTP_200_OK)
+def get_project_by_slug(project_slug: str) -> list[ProjectRead]:
+    projects = [project for project in mock_database.values() if project.slug == project_slug]
+    if not projects:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return projects
